@@ -18,49 +18,8 @@ app.use(bodyParser.urlencoded({ extended: false }));
 app.use(cookieParser());
 
 
-const {google} = require('googleapis');
-
-// Each API may support multiple version. With this sample, we're getting
-// v1 of the urlshortener API, and using an API key to authenticate.
-
-const oauth2Client = new google.auth.OAuth2(
-  YOUR_CLIENT_ID,
-  YOUR_CLIENT_SECRET,
-  YOUR_REDIRECT_URL
-);
-
-// generate a url that asks permissions for Google+ and Google Calendar scopes
-const scopes = [
-  'https://www.googleapis.com/auth/plus.me',
-  'https://www.googleapis.com/auth/calendar'
-];
-
-const url = oauth2Client.generateAuthUrl({
-  // 'online' (default) or 'offline' (gets refresh_token)
-  access_type: 'offline',
-
-  // If you only need one scope you can pass it as a string
-  scope: scopes
-});
-
-// GET /oauthcallback?code={authorizationCode}
 
 
-
-const {tokens} = await oauth2Client.getToken(code)
-oauth2Client.setCredentials(tokens);
-
-oauth2client.on('tokens', (tokens) => {
-  if (tokens.refresh_token) {
-    // store the refresh_token in my database!
-    console.log(tokens.refresh_token);
-  }
-  console.log(tokens.access_token);
-});
-
-oauth2client.setCredentials({
-  refresh_token: `STORED_REFRESH_TOKEN`
-});
 
 
 // GET https://www.googleapis.com/calendar/v3/calendars/calendarId/events
