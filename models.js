@@ -1,6 +1,6 @@
 const mongoose = require('mongoose');
 
-if (!process.env.MONGODB_URI) {
+if (!process.env.MLAB) {
   console.log('Error: MONGODB_URI is not set. Did you run source env.sh ?');
   process.exit(1);
 }
