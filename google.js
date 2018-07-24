@@ -92,3 +92,12 @@ fetch(`https://www.googleapis.com/calendar/v3/users/me/calendarList`, {
     .catch((err) => {
       console.log("Error in inserting new schedule(event): ", err);
     })
+
+axios.get('https://www.googleapis.com/calendar/v3/users/me/calendarList')
+  .then(function (response) {
+    console.log("Response: ", response);
+    console.log("data: ", response.data);
+  })
+  .catch(function (error) {
+    console.log(error);
+  });
