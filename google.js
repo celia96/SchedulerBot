@@ -1,94 +1,117 @@
-// Note, that each of the Queries above has a Subject and a Day.
-// The word “remind” let’s the bot know that our intent is to create a Task rather than a meeting (which would also require a Time and Invitees).
+const {google} = require('googleapis');
 
+// generate a url that asks permissions for Google+ and Google Calendar scopes
+const scopes = [
+  'https://www.googleapis.com/auth/plus.me',
+  'https://www.googleapis.com/auth/calendar'
+];
 
-// insert	POST  /calendars/calendarId/events	Creates an event.
+const oauth2Client = new google.auth.OAuth2(
+  process.env.CLIENT_ID,
+  process.env.CLIENT_SECRET,
+  process.env.REDIRECT_URL
+);
 
-// list	GET  /calendars/calendarId/events	Returns events on the specified calendar.
+module.exports = {
+  genereateAuthUrl() {
+    return oauth2Client.generateAuthUrl({
+      access_type: 'offline',
+      prompt: 'consent',
+      scope: scopes
+    });
+  },
 
-
-import bodyParser from 'body-parser';
-import express from 'express';
-const app = express();
-const path = require('path');
-const session = require('cookie-session');
-
-app.use(bodyParser.json());
-app.use(bodyParser.urlencoded({ extended: false }));
-app.use(cookieParser());
-
-
-
-
-
-
-// GET https://www.googleapis.com/calendar/v3/calendars/calendarId/events
-//
-// const { RTMClient } = require('@slack/client');
-//
-// // An access token (from your Slack app or custom integration - usually xoxb)
-// const token = process.env.SLACK_TOKEN;
-//
-// // The client is initialized and then started to get an active connection to the platform
-// const rtm = new RTMClient(token);
-// rtm.start();
-//
-// // This argument can be a channel ID, a DM ID, a MPDM ID, or a group ID
-// const conversationId = 'C1232456';
-//
-// // The RTM client can send simple string messages
-// rtm.sendMessage('Hello there', conversationId)
-//   .then((res) => {
-//     // `res` contains information about the posted message
-//     console.log('Message sent: ', res.ts);
-//   })
-//   .catch(console.error);
-
-// POST https://www.googleapis.com/calendar/v3/calendars/calendarId/events
-
-
-// Authorize before
-
-// Instert an event to the given calendar
-// id = calendarID
-fetch(`https://www.googleapis.com/calendar/v3/calendars/${id}/events`, {
-      method: 'POST',
-      headers: {
-        "Content-Type": "application/json"
-      },
-      body: JSON.stringify({
-
+  getToken(code) {
+    return new Promise (function(resolve, reject) {
+      oauth2Client.getToken(code, function(err, tokens) {
+        if (err) {
+          reject(err);
+        } else {
+          resolve(tokens);
+        }
       })
     })
-    .then((response) => response.json())
-    .then((responseJson) => {
-    })
-    .catch((err) => {
-      console.log("Error in inserting new schedule(event): ", err);
+  },
+
+  getCalendarList() {
+    const calendar = google.calendar('v3');
+    return new Promise (function(resolve, reject) {
+      calendar.events.list({
+        calendarId: 'primary',
+        timeMin: (new Date()).toISOString(),
+        maxResults: 10,
+        singleEvents: true,
+        orderBy: 'startTime',
+      }, (err, res) => {
+        if (err) {
+          // return console.log('The API returned an error: ' + err);
+          console.log("ERROR: ", err);
+          reject(err);
+        }
+        else {
+          const events = res.data.items;
+          if (events.length) {
+            console.log('Upcoming 10 events:');
+            events.map((event, i) => {
+              const start = event.start.dateTime || event.start.date;
+              console.log(`${start} - ${event.summary}`);
+            });
+          } else {
+            console.log('No upcoming events found.');
+          }
+          resolve(res)
+        }
+      });
     })
 
+  },
 
-// List of events of the given calendar
-// id = calendarID
-fetch(`https://www.googleapis.com/calendar/v3/calendars/${id}/events`, {
-      method: 'GET',
+  insertEvent(tokens, title, date) {
+    console.log("insert event");
+    return new Promise (function(resolve, reject) {
+      var event = {
+        'summary': title,
+        'location': '800 Howard St., San Francisco, CA 94103',
+        'description': 'A chance to hear more about Google\'s developer products.',
+        'start': {
+          'dateTime': '2018-08-28T09:00:00-07:00',
+          'timeZone': 'America/Los_Angeles',
+        },
+        'end': {
+          'dateTime': '2018-08-28T17:00:00-07:00',
+          'timeZone': 'America/Los_Angeles',
+        },
+        'recurrence': [
+          'RRULE:FREQ=DAILY;COUNT=2'
+        ],
+        'attendees': [
+          {'email': 'lpage@example.com'},
+          {'email': 'sbrin@example.com'},
+        ],
+        'reminders': {
+          'useDefault': false,
+          'overrides': [
+              {'method': 'email', 'minutes': 24 * 60},
+              {'method': 'popup', 'minutes': 10},
+          ],
+        },
+      };
+      var auth = oauth2Client;
+      oAuth2Client.setCredentials(tokens);
+      calendar.events.insert({
+        auth: oauth2Client,
+        calendarId: 'primary',
+        resource: event,
+      }, function(err, event) {
+        if (err) {
+          console.log('There was an error contacting the Calendar service: ' + err);
+          // return;
+          reject(err)
+        } else {
+          console.log('Event created: %s', event.htmlLink);
+          resolve(event)
+        }
+      });
     })
-    .then((response) => response.json())
-    .then((responseJson) => {
-    })
-    .catch((err) => {
-      console.log("Error in inserting new schedule(event): ", err);
-    })
-
-
-
-// GET  /users/me/calendarList
-fetch(`https://www.googleapis.com/calendar/v3/users/me/calendarList`, {
-      method: 'GET',
-    })
-    .then((response) => response.json())
-    .then((responseJson) => {
-    })
-    .catch((err) => {
-      console.log("Error in inserting new schedule(event): ", err);
-    })
+  }
+}
