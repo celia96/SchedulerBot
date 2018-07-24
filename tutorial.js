@@ -213,6 +213,7 @@ app.get('/authorize', (req, res) => {
 })
 
 app.get('http://localhost:3000/oauthcallback', (req, res) => {
+  console.log("Getting tokens: ", tokens);
   google.getToken(req.query.code)
     .then((tokens) => {
       // save the token to user model
@@ -220,7 +221,7 @@ app.get('http://localhost:3000/oauthcallback', (req, res) => {
        .then((user) => {
           user.tokens.accessToken = tokens.access_token;
           user.tokens.refreshToken = tokens.refresh_token;
-          user.save();
+          return user.save();
        })
        .then((saved) => {
          console.log("Successfully updated tokens at " + saved);
