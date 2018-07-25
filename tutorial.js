@@ -14,6 +14,8 @@ const { generateAuthUrl, getToken, insertEvent } = require('./google.js')
 app.use(bodyParser.urlencoded({extended:false}))
 app.use(bodyParser.json());
 
+var url = 'http://bd2a0dc5.ngrok.io';
+
 //mlab
 var mongoose = require('mongoose');
 var connect = process.env.MONGODB_URI;
@@ -68,7 +70,7 @@ rtm.on('message', (message) => {
          .then(res22 => {
            web.chat.postMessage({
              channel: message.channel,
-             text: 'If you want to use scheduler-slackbot, go to the following link to authorize access to Google Calendar: http://localhost:3000/authorize'
+             text: `If you want to use scheduler-slackbot, go to the following link to authorize access to Google Calendar: ${url}/authorize?slackId=${message.user}`
            })
          })
          .catch(error => console.log('error', error))
@@ -307,30 +309,32 @@ app.post('/', (req,res) => {
   }
 })
 
+
 app.get('/authorize', (req, res) => {
   console.log("AUTH");
-  var url = generateAuthUrl();
+  var slackid = req.query.slackId
+  var url = generateAuthUrl(slackid);
+  console.log(url);
   res.redirect(url);
 })
 
-app.get('http://localhost:3000/oauthcallback', (req, res) => {
-  console.log("Getting tokens: ", tokens);
+// process.env.REDIRECT_URL.replace(/https?:\/\/.+\//, '/')
+
+app.get('/oauthcallback', (req, res) => {
+  console.log("Getting tokens");
   getToken(req.query.code)
     .then((tokens) => {
-      console.log("Tokens");
-      res.json(tokens)
-      console.log();
       // save the token to user model
-      // User.findOne({slackId: slackid})
-      //  .then((user) => {
-      //     user.tokens.accessToken = tokens.access_token;
-      //     user.tokens.refreshToken = tokens.refresh_token;
-      //     return user.save();
-      //  })
-      //  .then((saved) => {
-      //    console.log("Successfully updated tokens at " + saved);
-      //  })
-
+      var slackid = req.query.state;
+      User.find({slackId: slackid})
+       .then((user) => {
+          user.tokens.accessToken = tokens.access_token;
+          user.tokens.refreshToken = tokens.refresh_token;
+          return user.save();
+       })
+       .then((saved) => {
+         console.log("Successfully updated tokens at " + saved);
+       })
     })
     .then(() => {
       res.send('INSERTED AN EVENT')
@@ -340,10 +344,9 @@ app.get('http://localhost:3000/oauthcallback', (req, res) => {
     })
 })
 
+
+
 /*
-
-
-
 
 reminder & schedule:
 function createEvent (slackid, reminder, task, subject, date) {
