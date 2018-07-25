@@ -10,7 +10,7 @@ var express = require('express')
 var app = express()
 var axios = require('axios')
 var clientToken = process.env.CLIENT_ACCESS_TOKEN;
-var google = require('./google')
+const { generateAuthUrl, getToken, insertEvent } = require('./google.js')
 app.use(bodyParser.urlencoded({extended:false}))
 app.use(bodyParser.json());
 
@@ -39,15 +39,8 @@ const web = new WebClient(slack_TOKEN);
   // update ngrok url: https://api.slack.com/apps/ABUM6GAAC/interactive-messages
 
 
-
 rtm.start();
 rtm.on('message', (message) => {
-
-
-  // web.chat.postMessage({
-  //   channel: message.channel,
-  //   text: 'If you want to use scheduler-slackbot, go to the following link to authorize access to Google Calendar: http://localhost:3000/authorize'
-  // }).catch(error => console.log('error', error))
 
   // Skip messages that are from a bot or my own user ID
   if ( (message.subtype && message.subtype === 'bot_message') ||
@@ -71,14 +64,16 @@ rtm.on('message', (message) => {
           slackEmail: user.profile.email,
           tokens: {}
         })
-        return newUser.save();
+         newUser.save()
+         .then(res22 => {
+           web.chat.postMessage({
+             channel: message.channel,
+             text: 'If you want to use scheduler-slackbot, go to the following link to authorize access to Google Calendar: http://localhost:3000/authorize'
+           })
+         })
+         .catch(error => console.log('error', error))
       }
     })
-    // .then((obj) => {
-    //   if (obj.tokens) {
-    //
-    //   }
-    // })
     .catch(err2 => {
       console.log(err2)
     })
@@ -107,30 +102,20 @@ rtm.on('message', (message) => {
   })
   .then((res1) => {
     //dialogflow response
-    var params = res1.data.result.parameters
-    console.log("< DIALOGFLOW RESPONSE > ", params)
     // Task: {Task, subject, date}
     // Meeting: {Meeting, date, time, given-name, subject (not required)}
+    var params = res1.data.result.parameters
+    var prompt = res1.data.result.fulfillment.speech
+    console.log("< DIALOGFLOW RESPONSE > ", res1.data)
     var task = params.Task
     var subject = params.subject
     var date = params.date
+    var time = params.time
     var meeting = params.Meeting
-    var invitee = params["given-name"]
+    var invitee = params.name
 
-    //Remind task
-    if (task) {
-      if (!date) {
-        web.chat.postMessage({
-          channel: message.channel,
-          text: 'On what date?'
-        })
-      } else if (!subject) {
-          web.chat.postMessage({
-            channel: message.channel,
-            text: 'What do you want to do?'
-          })
-      } else {
-        //slackbot ask user for confirmation
+    if (prompt === 'Scheduled!') {
+      if (task) {
         web.chat.postMessage({
           channel: message.channel,
           text: '',
@@ -153,12 +138,128 @@ rtm.on('message', (message) => {
             }]
           }]
         })
-        .then((res) => {
-          console.log('< SLACKBOT MESSAGE > Message sent by slackbot: ', res);
+      } else if (meeting) {
+        web.chat.postMessage({
+          channel: message.channel,
+          text: '',
+          attachments: [{
+            "text": `${meeting} with ${invitee} to ${subject} at ${time} on ${date}?`,
+            "fallback": "Unable to understand natural language",
+            "callback_id": "button",
+            attachment_type: "default",
+            actions: [{
+                "name": "button",
+                "text": "Yes",
+                "type": "button",
+                "value": "Yes"
+            },
+            {
+                "name": "button",
+                "text": "No",
+                "type": "button",
+                "value": "No"
+            }]
+          }]
         })
-        .catch(err => console.log('err', err));
       }
+    } else {
+      web.chat.postMessage({
+        channel: message.channel,
+        text: prompt
+      })
     }
+
+    // // Individual prompt code
+    // if (task) {
+    //   if (!date) {
+    //     web.chat.postMessage({
+    //       channel: message.channel,
+    //       text: 'On what date?'
+    //     })
+    //   } else if (!subject) {
+    //       web.chat.postMessage({
+    //         channel: message.channel,
+    //         text: 'What do you want to do?'
+    //       })
+    //   } else {
+    //     //slackbot ask user for confirmation
+    //     web.chat.postMessage({
+    //       channel: message.channel,
+    //       text: '',
+    //       attachments: [{
+    //         "text": `${task} to ${subject} on ${date}?`,
+    //         "fallback": "Unable to understand natural language",
+    //         "callback_id": "button",
+    //         attachment_type: "default",
+    //         actions: [{
+    //             "name": "button",
+    //             "text": "Yes",
+    //             "type": "button",
+    //             "value": "Yes"
+    //         },
+    //         {
+    //             "name": "button",
+    //             "text": "No",
+    //             "type": "button",
+    //             "value": "No"
+    //         }]
+    //       }]
+    //     })
+    //     .then((res) => {
+    //       console.log('< SLACKBOT MESSAGE > Message sent by slackbot: ', res);
+    //     })
+    //     .catch(err => console.log('err', err));
+    //   }
+    // } else if (meeting) {
+    //   if (!date) {
+    //     web.chat.postMessage({
+    //       channel: message.channel,
+    //       text: 'On what date?'
+    //     })
+    //   } else if (!time) {
+    //     web.chat.postMessage({
+    //       channel: message.channel,
+    //       text: 'What time?'
+    //     })
+    //   } else if (!invitee) {
+    //     web.chat.postMessage({
+    //       channel: message.channel,
+    //       text: 'With whom?'
+    //     })
+    //   } else {
+    //     web.chat.postMessage({
+    //       channel: message.channel,
+    //       text: '',
+    //       attachments: [{
+    //         "text": `${meeting} with ${invitee} to ${subject} at ${time} on ${date}?`,
+    //         "fallback": "Unable to understand natural language",
+    //         "callback_id": "button",
+    //         attachment_type: "default",
+    //         actions: [{
+    //             "name": "button",
+    //             "text": "Yes",
+    //             "type": "button",
+    //             "value": "Yes"
+    //         },
+    //         {
+    //             "name": "button",
+    //             "text": "No",
+    //             "type": "button",
+    //             "value": "No"
+    //         }]
+    //       }]
+    //     })
+    //     .then((res) => {
+    //       console.log('< SLACKBOT MESSAGE > Message sent by slackbot: ', res);
+    //     })
+    //     .catch(err => console.log('err', err));
+    //   }
+    // } else {
+    //   web.chat.postMessage({
+    //     channel: message.channel,
+    //     text: 'Enter a valid command'
+    //   })
+    // }
   })
   .catch(err2 => console.log('err2', err2));
 });
@@ -181,7 +282,7 @@ app.post('/', (req,res) => {
           } else {
             reminder = false;
           }
-          return google.insertEvent(user.tokens, reminder, subject, date)
+          return insertEvent(user.tokens, reminder, subject, date)
         } else {
           console.log("DO NOT HAVE ACCESS TOKEN");
         }
@@ -208,24 +309,27 @@ app.post('/', (req,res) => {
 
 app.get('/authorize', (req, res) => {
   console.log("AUTH");
-  var url = google.generateAuthUrl();
+  var url = generateAuthUrl();
   res.redirect(url);
 })
 
 app.get('http://localhost:3000/oauthcallback', (req, res) => {
   console.log("Getting tokens: ", tokens);
-  google.getToken(req.query.code)
+  getToken(req.query.code)
     .then((tokens) => {
+      console.log("Tokens");
+      res.json(tokens)
+      console.log();
       // save the token to user model
-      User.find({slackId: slackid})
-       .then((user) => {
-          user.tokens.accessToken = tokens.access_token;
-          user.tokens.refreshToken = tokens.refresh_token;
-          return user.save();
-       })
-       .then((saved) => {
-         console.log("Successfully updated tokens at " + saved);
-       })
+      // User.findOne({slackId: slackid})
+      //  .then((user) => {
+      //     user.tokens.accessToken = tokens.access_token;
+      //     user.tokens.refreshToken = tokens.refresh_token;
+      //     return user.save();
+      //  })
+      //  .then((saved) => {
+      //    console.log("Successfully updated tokens at " + saved);
+      //  })
 
     })
     .then(() => {

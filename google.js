@@ -13,7 +13,7 @@ const oauth2Client = new google.auth.OAuth2(
 );
 
 module.exports = {
-  genereateAuthUrl() {
+  generateAuthUrl: function() {
     return oauth2Client.generateAuthUrl({
       access_type: 'offline',
       prompt: 'consent',
@@ -21,7 +21,7 @@ module.exports = {
     });
   },
 
-  getToken(code) {
+  getToken: function(code) {
     return new Promise (function(resolve, reject) {
       oauth2Client.getToken(code, function(err, tokens) {
         if (err) {
@@ -33,7 +33,7 @@ module.exports = {
     })
   },
 
-  getCalendarList() {
+  getCalendarList: function() {
     const calendar = google.calendar('v3');
     return new Promise (function(resolve, reject) {
       calendar.events.list({
@@ -66,7 +66,7 @@ module.exports = {
 
   },
 
-  insertEvent(tokens, title, date) {
+  insertEvent: function(tokens, title, date) {
     console.log("insert event");
     return new Promise (function(resolve, reject) {
       var event = {
