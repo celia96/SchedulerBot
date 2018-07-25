@@ -13,11 +13,12 @@ const oauth2Client = new google.auth.OAuth2(
 );
 
 module.exports = {
-  generateAuthUrl: function() {
+  generateAuthUrl: function(state) {
     return oauth2Client.generateAuthUrl({
       access_type: 'offline',
       prompt: 'consent',
-      scope: scopes
+      scope: scopes,
+      state
     });
   },
 
