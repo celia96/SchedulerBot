@@ -32,6 +32,9 @@ const userSchema = mongoose.Schema({
   },
   slackId: String,
   slackUsername: String,
+  slackFirstName: String,
+  slackLastName: String,
+  slackTimeZone: String,
   slackEmail: String,
   slackDMId: String
 })
@@ -40,10 +43,6 @@ const meetingSchema = mongoose.Schema({
   date: {
     type: Date,
     required: true,
-  },
-  time: {
-    type: String,
-    required: true
   },
   invitee: {
     type: String,

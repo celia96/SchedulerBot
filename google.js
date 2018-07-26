@@ -67,28 +67,28 @@ module.exports = {
 
   },
 
-  insertEvent: function(tokens, title, date) {
+  insertEvent: function(tokens, reminder, title, date, tz, inviteeEmail) {
     console.log("insert event");
+    const calendar = google.calendar('v3');
+    var arr=[]
+    var d = new Date(date)
+    if (inviteeEmail) {inviteeEmail.forEach(item => {
+      arr.push({'email': item})
+    })}
     return new Promise (function(resolve, reject) {
       var event = {
         'summary': title,
         'location': '800 Howard St., San Francisco, CA 94103',
         'description': 'A chance to hear more about Google\'s developer products.',
         'start': {
-          'dateTime': '2018-08-28T09:00:00-07:00',
-          'timeZone': 'America/Los_Angeles',
+          'dateTime': date,
+          'timeZone': tz,
         },
         'end': {
-          'dateTime': '2018-08-28T17:00:00-07:00',
-          'timeZone': 'America/Los_Angeles',
+          'dateTime': new Date(d.setHours(d.getHours() + 1)),
+          'timeZone': tz,
         },
-        'recurrence': [
-          'RRULE:FREQ=DAILY;COUNT=2'
-        ],
-        'attendees': [
-          {'email': 'lpage@example.com'},
-          {'email': 'sbrin@example.com'},
-        ],
+        'attendees': arr,
         'reminders': {
           'useDefault': false,
           'overrides': [
@@ -97,8 +97,17 @@ module.exports = {
           ],
         },
       };
-      var auth = oauth2Client;
-      oAuth2Client.setCredentials(tokens);
+      // var auth = oauth2Client;
+      var t = {
+        access_token: tokens.accessToken,
+        refresh_token: tokens.refreshToken,
+      }
+      const oauth2Client = new google.auth.OAuth2(
+        process.env.CLIENT_ID,
+        process.env.CLIENT_SECRET,
+        process.env.REDIRECT_URL
+      );
+      oauth2Client.setCredentials(t);
       calendar.events.insert({
         auth: oauth2Client,
         calendarId: 'primary',
@@ -109,10 +118,49 @@ module.exports = {
           // return;
           reject(err)
         } else {
-          console.log('Event created: %s', event.htmlLink);
+          console.log('Event created');
           resolve(event)
         }
       });
+    })
+  },
+
+  freeBusy: function(tokens, dateMin, dateMax) {
+    const calendar = google.calendar('v3');
+    var t = {
+      access_token: tokens.accessToken,
+      refresh_token: tokens.refreshToken,
+    }
+    const oauth2Client = new google.auth.OAuth2(
+      process.env.CLIENT_ID,
+      process.env.CLIENT_SECRET,
+      process.env.REDIRECT_URL
+    );
+    // console.log("TTTT: ", t);
+    oauth2Client.setCredentials(t);
+    return new Promise (function(resolve, reject) {
+      // console.log("STARTTT");
+      calendar.freebusy.query({
+        auth: oauth2Client,
+        resource: {
+          "timeMin": dateMin,
+          "timeMax": dateMax,
+          "items": [
+            {
+              "id": "primary"
+            }
+          ]
+        }
+      }, function(err, response) {
+        if (err) {
+          console.log('There was an error contacting the Calendar service: ' + err);
+          // return;
+          reject(err)
+        } else {
+          // console.log('Find a freebusy');
+          resolve(response)
+        }
+      })
     })
   }
 }
