@@ -14,7 +14,9 @@ const { generateAuthUrl, getToken, insertEvent, freeBusy } = require('./google.j
 app.use(bodyParser.urlencoded({extended:false}))
 app.use(bodyParser.json());
 
-var url = 'http://46c76d3b.ngrok.io';
+var moment = require('moment')
+
+var url = 'http://b3bc0617.ngrok.io';
 
 //mlab
 var mongoose = require('mongoose');
@@ -193,6 +195,10 @@ app.post('/', (req,res) => {
   }
   if (value === 'No') { //User clicked on 'no'
     console.log("post, No")
+    web.chat.postMessage({
+      channel: newReq.channel.id,
+      text: "Please enter another event to schedule"
+    })
     return;
   } else if (value === 'meetingDate') {
     var newDate = newReq.actions[0].selected_options[0].value // 2018-07-27T22:00:00.000Z
@@ -351,13 +357,28 @@ app.post('/', (req,res) => {
           // today.setSeconds(0);
           // var tmrw = today.setDate(today.getDate() + 1);
 
-          // console.log("STARTING from: ", tmrw);
+          var minDay = new Date(date);
+          minDay.setDate(minDay.getDate() - 1); // a day before the date that we are scheduling a meeting
+          var int1 = {
+            start : new Date(minDay),
+            end: new Date(busyTime[0].start)
+          }
+          intervals.push(int1)
+          var maxDay = new Date(date);
+          maxDay.setDate(maxDay.getDate() + 3);
+          var int2 = {
+            start: new Date(busyTime[busyTime.length-1].end),
+            end: new Date(maxDay)
+          }
+          intervals.push(int2)
+          // if there are more than one busy time
           for (var i = 0; i < busyTime.length-1; i++) {
             var interval =
             {
               start: new Date(busyTime[i].end),
               end: new Date(busyTime[i+1].start)
             }
+
             intervals.push(interval);
           }
           console.log("Intervals: ", intervals);
@@ -367,9 +388,13 @@ app.post('/', (req,res) => {
             time.end = new Date(time.end)
             console.log("time: ", time.start);
             console.log("Start Hours: ", time.start.getHours());
+            console.log("End Hours: ", time.end.getHours());
+
             // iterate through the days between start and end date
 
             console.log("Start date: ", time.start.getDate());
+            console.log("End date: ", time.end.getDate());
+
             // start and end date are same
             if (time.start.getDate() === time.end.getDate()) {
               if (time.start.getHours() < 17 && time.end.getHours() > 10) {
@@ -379,105 +404,111 @@ app.post('/', (req,res) => {
                   start: start,
                   end: end
                 }
+                freeTime.push(free)
               }
-            // only one night between start and end
-            } else if (time.start.getDate() + 1 === time.end.getDate()) {
-              // ex) 5pm - 11am => 10am - 11am
-              if (time.start.getHours() >= 17 && time.end.getHours() > 10) {
-                // time.start.setDate(time.start.getDate() + 1);
-                var end = new Date(time.end);
-                var start = new Date(time.start);
-                start.setDate(start.getDate() + 1);
-                start.setHours(10);
-                start.setMinutes(0);
-                start.setSeconds(0);
-                var free = {
-                  start: start,
-                  end: end
-                }
-                freeTime.push(free);
-                // ex) 2pm - 10am => 2pm - 5pm
-              } else if (time.start.getHours() < 17 && time.end.getHours() <= 10) {
-                var start = new Date(time.start);
-                var end = new Date(time.start);
-                end.setDate(end.getDate() + 1);
-                end.setHours(17);
-                end.setMinutes(0);
-                end.setSeconds(0);
-                var free = {
-                  start: start,
-                  end: time.end
-                }
-                freeTime.push(free);
-                // ex) 2pm - 11am = 2pm - 5pm & 10am - 11am
-              } else if (time.end.getHours() > 10) {
-                // first slot
-                var start1 = new Date(time.start);
-                var end1 = new Date(time.start);
-                end1.setDate(end1.getDate());
-                end1.setHours(17);
-                end1.setMinutes(0);
-                end1.setSeconds(0);
-                var free1 = {
-                  start: start1,
-                  end: end1
-                }
-                // second slot
-                var end2 = new Date(time.end);
-                var start2 = new Date(time.start)
-                start2.setDate(start2.getDate() + 1);
-                start2.setHours(10);
-                start2.setMinutes(0);
-                start2.setSeconds(0);
-
-                var free2 = {
-                  start: start2,
-                  end: end2
-                }
-                freeTime.push(free1);
-                freeTime.push(free2);
-              }
-            // multiple nights between start and end
             } else {
-              while(time.start.getDate() + 1 < time.end.getDate()) {
-                // start is after 5pm
-                // if (time.start.getHours() >= 17) {
-                //   var end = new Date(time.start);
-                //   end.setDate(end.getDate() + 1);
-                //   end.setHours(17);
-                //   end.setMinutes(0);
-                //   end.setSeconds(0);
-                //   var start = new Date(time.start);
-                //   start.setDate(start.getDate() + 1);
-                //   start.setHours(10);
-                //   start.setMinutes(0);
-                //   start.setSeconds(0);
-                //   var free = {
-                //     start: start,
-                //     end: end
-                //   }
-                //   freeTime.push(free);
-                // // ex) 2pm - 10am => 2pm - 5pm
-                // } else if (time.start.getHours() < 17 && time.end.getHours() <= 10) {
-                //   var start = new Date(time.start);
-                //   var end = new Date(time.start);
-                //   end.setDate(end.getDate() + 1);
-                //   end.setHours(17);
-                //   end.setMinutes(0);
-                //   end.setSeconds(0);
-                //   var free = {
-                //     start: start,
-                //     end: time.end
-                //   }
-                //   freeTime.push(free);
-                // // 10am - 5pm
-                // } else if (time.end.getHours() > 10) {
-                //
-                // }
-                // time.start.setDate(time.start.getDate() + 1)
+              // there are nights between start and end
+              while (moment(time.start).isBefore(time.end)) {
+                console.log("TIME STARTs at :", time.start);
+                console.log("MOMENT IS BEFORE");
+                var startPlus = new Date(time.start);
+                startPlus.setDate(startPlus.getDate() + 1);
+                // only one night between start and end
+                if (startPlus.getDate() === time.end.getDate()) {
+                  // ex) 5pm - 11am => 10am - 11am
+                  if (time.start.getHours() >= 17 && time.end.getHours() > 10) {
+                    // time.start.setDate(time.start.getDate() + 1);
+                    var end = new Date(time.end);
+                    var start = new Date(time.end);
+                    start.setDate(start.getDate());
+                    start.setHours(10);
+                    start.setMinutes(0);
+                    start.setSeconds(0);
+                    var free = {
+                      start: start,
+                      end: end
+                    }
+                    freeTime.push(free);
+                    // ex) 2pm - 10am => 2pm - 5pm
+                  } else if (time.start.getHours() < 17 && time.end.getHours() <= 10) {
+                    var start = new Date(time.start);
+                    var end = new Date(time.start);
+                    end.setDate(end.getDate());
+                    end.setHours(17);
+                    end.setMinutes(0);
+                    end.setSeconds(0);
+                    var free = {
+                      start: start,
+                      end: end
+                    }
+                    freeTime.push(free);
+                    // ex) 2pm - 11am = 2pm - 5pm & 10am - 11am
+                  } else if (time.end.getHours() > 10) {
+                    // first slot
+                    var start1 = new Date(time.start);
+                    var end1 = new Date(time.start);
+                    end1.setDate(end1.getDate());
+                    end1.setHours(17);
+                    end1.setMinutes(0);
+                    end1.setSeconds(0);
+                    var free1 = {
+                      start: start1,
+                      end: end1
+                    }
+                    // second slot
+                    var end2 = new Date(time.end);
+                    var start2 = new Date(time.end)
+                    start2.setDate(start2.getDate());
+                    start2.setHours(10);
+                    start2.setMinutes(0);
+                    start2.setSeconds(0);
+
+                    var free2 = {
+                      start: start2,
+                      end: end2
+                    }
+                    freeTime.push(free1);
+                    freeTime.push(free2);
+                  }
+                  time.start.setDate(time.end.getDate());
+                  time.start.setHours(time.end.getHours());
+                  time.start.setMinutes(time.end.setMinutes())
+                  time.start.setSeconds(time.end.setSeconds())
+                } else {
+                  // return;
+                  console.log("MULTIPLE NIghts");
+                  // multiple nights between start and end
+                  // start before 5pm
+                  if (time.start.getHours() < 17) {
+                    var start = new Date(time.start);
+                    var end = new Date(time.start);
+                    end.setDate(end.getDate());
+                    end.setHours(17);
+                    end.setMinutes(0);
+                    end.setSeconds(0);
+                    var free = {
+                      start: start,
+                      end: end
+                    }
+                    freeTime.push(free);
+                    time.start.setDate(time.start.getDate() + 1);
+                    time.start.setHours(10);
+                    time.start.setMinutes(0)
+                    time.start.setSeconds(0)
+                  }
+                  // start at 5pm
+                  if (time.start.getHours() === 17) {
+                    // update the start date
+                    time.start.setDate(time.start.getDate() + 1);
+                    time.start.setHours(10);
+                    time.start.setMinutes(0);
+                    time.start.setSeconds(0);
+                  }
+                }
               }
             }
           })
+          console.log("FREE TIME: ", freeTime);
           suggestTime = []
           freeTime.map(item => { //mapping through all free intervals
             //Changing TimeZone
@@ -498,52 +529,48 @@ app.post('/', (req,res) => {
             }
 
             timess.forEach(item2 => {
+              var current = new Date()
+              var currentUTC = current.getTime() + (current.getTimezoneOffset() * 60000)
+              var currentND = new Date(currentUTC + (3600000*-14))
               var startUTC = item2.getTime() + (item2.getTimezoneOffset() * 60000)
               var nd = new Date(startUTC + (3600000*-14)) // converted
-              suggestTime.push({text:nd, value:nd})
+              if (nd.valueOf() > currentND.valueOf()) {
+                suggestTime.push({text:nd, value:nd})
+              }
             })
           })
 
-          /*
-          busyTime
-          // Get a free time
-          freetime = []; // 9am to 5pm
-          var today = new Date();
-          today.setHours(8);
-          today.setMinutes(0);
-          today.setSeconds(0);
-          console.log("STARTING from: ", today);
-          var startDate = new Date(today);
-          var endDate = new Date(today.setDate(today.getDate() + 3))
-
-          for (var j = 0; j < 2; j ++) {
-            for (var i = 10; i < 17; i ++) {
-              startDate = startDate.setDate(startDate.getDate() + 1) // tomorrow
-              freetime.push(startDate.setHours(i));
-            }
-          }
-
-          */
+          //SORT suggestTime
+          suggestTime.sort(function(a,b){
+            return new Date(a.value) - new Date(b.value);
+          });
 
           console.log('conflicting time')
-          web.chat.postMessage({
-            channel: newReq.channel.id,
-            text: '',
-            response_type: 'in_channel',
-            attachments: [{
-              text: 'Your proposed meeting time has conflicts. Please choose from these available times to successfully schedule a meeting.',
-              fallback: 'Your proposed meeting time has conflicts. Please choose from these available times to successfully schedule a meeting.',
-              "color": "#3AA3E3",
-              "attachment_type": "default",
-              "callback_id": newReq.callback_id,
-              actions: [{
-                "name": "time_list",
-                "text": "Pick a time...",
-                "type": "select",
-                "options": suggestTime
+          if (suggestTime.length === 0) {
+            web.chat.postMessage({
+              channel: newReq.channel.id,
+              text: 'There are no available meeting times for the invitees within 2 days of your proposed time. Please choose another date.'
+            })
+          } else {
+            web.chat.postMessage({
+              channel: newReq.channel.id,
+              text: '',
+              response_type: 'in_channel',
+              attachments: [{
+                text: 'Your proposed meeting time has conflicts. Please choose from these available times to successfully schedule a meeting.',
+                fallback: 'Your proposed meeting time has conflicts. Please choose from these available times to successfully schedule a meeting.',
+                "color": "#3AA3E3",
+                "attachment_type": "default",
+                "callback_id": newReq.callback_id,
+                actions: [{
+                  "name": "time_list",
+                  "text": "Pick a time...",
+                  "type": "select",
+                  "options": suggestTime
+                }]
               }]
-            }]
-          })
+            })
+          }
         } else {
           console.log('no conflict in time');
           //Create Events
@@ -632,23 +659,6 @@ app.get('/oauthcallback', (req, res) => {
     })
 })
 
-
-
-/*
-
-// check the time conflict
-function checkTime (date) {
-  occupied = false;
-  Task.find({day: date})
-    .then((task) => {
-      if (task[0].length !== 0) {
-        exist = true;
-      }
-    })
-  return occupied
-}
-
-*/
 
 
 app.listen(3000)
