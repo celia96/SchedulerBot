@@ -16,7 +16,7 @@ app.use(bodyParser.json());
 
 var moment = require('moment')
 
-var url = 'http://b3bc0617.ngrok.io';
+var url = 'https://agile-depths-13075.herokuapp.com';
 
 //mlab
 var mongoose = require('mongoose');
