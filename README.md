@@ -8,4 +8,5 @@ confirmations
 Calendar API to find non-conflicting times for meeting participants
 
 
-<img width="1046" alt="schedulerbot" src="https://user-images.githubusercontent.com/33583168/45280008-ca6acf80-b50d-11e8-8b53-1e07ff98ce8d.png">
+## Example
+<img width="1039" alt="schedulerbot" src="https://user-images.githubusercontent.com/33583168/45280080-01d97c00-b50e-11e8-813e-45fc6378120d.png">
