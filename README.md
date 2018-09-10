@@ -10,3 +10,5 @@ Calendar API to find non-conflicting times for meeting participants
 
 ## Example
 <img width="1039" alt="schedulerbot" src="https://user-images.githubusercontent.com/33583168/45280080-01d97c00-b50e-11e8-813e-45fc6378120d.png">
+
+When scheduled successfully, the bot will access to participants' Google Calendars and schedule a meeting at a given time
